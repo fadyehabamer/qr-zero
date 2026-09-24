@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Pack the package, install the tarball into a throwaway project and check
-# that both `import` (ESM) and `require` (CJS) resolve and work, and that the
-# bundled type declarations resolve under TypeScript's node16 resolution.
+# that both `import` (ESM) and `require` (CJS) resolve and work, that the
+# bundled type declarations resolve under TypeScript's node16 resolution,
+# and that the `qr-zero` bin runs.
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -50,3 +51,9 @@ node esm.mjs
 node cjs.cjs
 npx tsc --noEmit --strict --module node16 --moduleResolution node16 types.mts types.cts
 echo "TypeScript (node16, ESM + CJS) types ok"
+
+svg="$(./node_modules/.bin/qr-zero "HELLO 123" --ec Q --svg -)"
+case "$svg" in "<svg"*"</svg>") ;; *) echo "bad CLI SVG output" >&2; exit 1 ;; esac
+term="$(./node_modules/.bin/qr-zero "https://github.com/fadyehabamer/qr-zero" --margin 1)"
+sed -n 1,3p <<<"$term"
+echo "CLI bin ok: $(./node_modules/.bin/qr-zero --version)"
