@@ -1,6 +1,9 @@
 /**
  * qr-zero — a zero-dependency QR code encoder.
  *
- * The public API is assembled here as the encoder modules land.
+ * Byte mode, versions 1–40, error-correction levels L/M/Q/H.
  */
-export {};
+export { encode, QrTooLongError } from "./encode";
+export type { EncodeOptions, QrCode } from "./encode";
+export { byteCapacity, dataCodewords, MAX_BYTES } from "./tables";
+export type { EcLevel } from "./tables";
