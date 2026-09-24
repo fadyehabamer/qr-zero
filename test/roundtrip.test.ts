@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import jsQR from "jsqr";
-import { byteCapacity, encode, MAX_BYTES, type EcLevel } from "../src/index";
+import { byteCapacity, encode, MAX_BYTES, type EcLevel, type EncodeOptions } from "../src/index";
 import { ARABIC_EMOJI, ASCII, randomText, rasterize } from "./helpers";
 
 const LEVELS: EcLevel[] = ["L", "M", "Q", "H"];
@@ -17,8 +17,8 @@ const LEVELS: EcLevel[] = ["L", "M", "Q", "H"];
 const JSQR_UNREADABLE = new Set(["23-L"]);
 
 /** Encode, rasterise, decode with jsQR, and check bytes and version survive. */
-function roundTrip(text: string, ec: EcLevel, expectVersion?: number) {
-  const qr = encode(text, ec);
+function roundTrip(text: string, ec: EcLevel, expectVersion?: number, options: EncodeOptions = {}) {
+  const qr = encode(text, { ...options, ecLevel: ec });
   if (expectVersion !== undefined) assert.equal(qr.version, expectVersion);
   const { data, width, height } = rasterize(qr);
   const decoded = jsQR(data, width, height, { inversionAttempts: "dontInvert" });
@@ -29,10 +29,11 @@ function roundTrip(text: string, ec: EcLevel, expectVersion?: number) {
 }
 
 for (const ec of LEVELS) {
-  test(`jsQR round-trip, EC ${ec}: every version 1–40 filled to capacity (ASCII)`, () => {
+  test(`jsQR round-trip, EC ${ec}: every version 1–40 filled to byte capacity (ASCII)`, () => {
     for (let v = 1; v <= 40; v++) {
       if (JSQR_UNREADABLE.has(`${v}-${ec}`)) continue;
-      roundTrip(randomText(byteCapacity(v, ec), ASCII, v * 131 + ec.charCodeAt(0)), ec, v);
+      const text = randomText(byteCapacity(v, ec), ASCII, v * 131 + ec.charCodeAt(0));
+      roundTrip(text, ec, v, { mode: "byte" });
     }
   });
 }

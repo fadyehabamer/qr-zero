@@ -71,9 +71,6 @@ const COUNT_BITS = [
 export const countBits = (mode: Mode, version: number): number =>
   COUNT_BITS[MODES.indexOf(mode)][version <= 9 ? 0 : version <= 26 ? 1 : 2];
 
-/** Byte mode's character-count field: 8 bits up to version 9, 16 after. */
-export const byteCountBits = (version: number): number => countBits("byte", version);
-
 /**
  * Most characters a single segment of one mode fits in a given version and
  * EC level. Numeric packs 3 digits into 10 bits, alphanumeric 2 characters

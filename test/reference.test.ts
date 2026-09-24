@@ -7,13 +7,20 @@ import { ARABIC_EMOJI, ASCII, randomText, rng } from "./helpers";
 const LEVELS: EcLevel[] = ["L", "M", "Q", "H"];
 
 /**
- * Build the same symbol with the `qrcode` package — forcing byte mode, the
- * version and the mask qr-zero chose — and compare every module. (Mask
+ * Build the same symbol with the `qrcode` package — forcing the segments,
+ * version and mask qr-zero chose — and compare every module. (Mask
  * *selection* is not compared: `qrcode` scores penalty rule 3 differently,
  * so the two libraries sometimes pick different, equally valid masks.)
  */
 function assertMatchesReference(qr: QrCode, payload: Uint8Array) {
-  const ref = QRCode.create([{ data: payload, mode: "byte" }], {
+  let at = 0;
+  const segments = qr.segments.map(({ mode, length }) => {
+    const part = payload.subarray(at, (at += length));
+    return mode === "byte"
+      ? { data: part, mode }
+      : { data: String.fromCharCode(...part), mode };
+  });
+  const ref = QRCode.create(segments, {
     errorCorrectionLevel: qr.ecLevel,
     version: qr.version,
     maskPattern: qr.mask as QRCode.QRCodeMaskPattern,
@@ -33,14 +40,14 @@ const check = (text: string, options: Parameters<typeof encode>[1]) =>
   assertMatchesReference(encode(text, options), new TextEncoder().encode(text));
 
 for (const ec of LEVELS) {
-  test(`matches qrcode module-for-module, EC ${ec}, versions 1–40`, () => {
+  test(`matches qrcode module-for-module, EC ${ec}, versions 1–40 (byte mode)`, () => {
     const next = rng(ec.charCodeAt(0));
     for (let v = 1; v <= 40; v++) {
       // A random length inside this version's range, so padding varies.
       const lo = v === 1 ? 0 : byteCapacity(v - 1, ec) + 1;
       const len = lo + Math.floor(next() * (byteCapacity(v, ec) - lo + 1));
       const text = randomText(len, v % 2 ? ASCII : ARABIC_EMOJI, v * 17);
-      const qr = encode(text, ec);
+      const qr = encode(text, { ecLevel: ec, mode: "byte" });
       assert.equal(qr.version, v);
       assertMatchesReference(qr, new TextEncoder().encode(text));
     }
@@ -55,8 +62,10 @@ test("matches qrcode for every mask at several versions", () => {
   }
 });
 
-test("matches qrcode at exact version capacities", () => {
+test("matches qrcode at exact byte-mode version capacities", () => {
   for (const ec of LEVELS) {
-    for (const v of [1, 9, 10, 26, 27, 40]) check(randomText(byteCapacity(v, ec), ASCII, v), ec);
+    for (const v of [1, 9, 10, 26, 27, 40]) {
+      check(randomText(byteCapacity(v, ec), ASCII, v), { ecLevel: ec, mode: "byte" });
+    }
   }
 });
