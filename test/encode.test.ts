@@ -1,7 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { byteCapacity, encode, MAX_BYTES, QrTooLongError } from "../src/index";
+import { buildCodewords } from "../src/encode";
 import { EC_LEVELS } from "../src/tables";
+
+const utf8 = (s: string) => new TextEncoder().encode(s);
 
 test("defaults: EC level M, smallest version, a mask in 0–7", () => {
   const qr = encode("hello");
@@ -95,4 +98,23 @@ test("the empty string encodes", () => {
   const qr = encode("");
   assert.equal(qr.version, 1);
   assert.equal(qr.bytes, 0);
+});
+
+test("eci: off by default, adds a 12-bit UTF-8 designator when set", () => {
+  const plain = buildCodewords(utf8("é"), [{ mode: "byte", length: 2 }], 1, "M");
+  assert.equal(plain[0] >>> 4, 0b0100, "starts with the byte-mode indicator");
+  const eci = buildCodewords(utf8("é"), [{ mode: "byte", length: 2 }], 1, "M", true);
+  assert.equal(eci[0], 0x71, "ECI mode 0111, assignment 0001…");
+  assert.equal(eci[1] >>> 4, 0b1010, "…1010 = 26 (UTF-8)");
+  assert.equal(eci[1] & 0xf, 0b0100, "then the byte segment");
+});
+
+test("eci: the 12 extra bits count towards version selection", () => {
+  for (const ec of EC_LEVELS) {
+    const cap = byteCapacity(5, ec);
+    assert.equal(encode("a".repeat(cap), { ecLevel: ec }).version, 5);
+    assert.equal(encode("a".repeat(cap), { ecLevel: ec, eci: true }).version, 6);
+    assert.equal(encode("a".repeat(cap - 2), { ecLevel: ec, eci: true }).version, 5);
+  }
+  assert.throws(() => encode("z".repeat(MAX_BYTES.L), { ecLevel: "L", eci: true }), QrTooLongError);
 });

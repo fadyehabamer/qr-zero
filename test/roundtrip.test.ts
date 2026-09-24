@@ -116,3 +116,16 @@ test("jsQR round-trip: automatic mixed segmentation", () => {
     for (let i = 0; i < 40; i++) roundTrip(mixedText(1 + (i % 15), i * 7 + ec.charCodeAt(0)), ec);
   }
 });
+
+test("jsQR round-trip: an ECI UTF-8 designator is read and the text survives", () => {
+  for (const ec of LEVELS) {
+    for (const text of ["", "HELLO 123", "مرحبا بالعالم 👋🏽🇪🇬", "café 0123456789012345 ABC"]) {
+      const qr = encode(text, { ecLevel: ec, eci: true });
+      const { data, width, height } = rasterize(qr);
+      const decoded = jsQR(data, width, height, { inversionAttempts: "dontInvert" });
+      assert.ok(decoded, `jsQR could not read "${text}" with ECI`);
+      assert.deepEqual(decoded.chunks[0], { type: "eci", assignmentNumber: 26 });
+      assert.equal(decoded.data, text);
+    }
+  }
+});

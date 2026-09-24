@@ -37,6 +37,12 @@ export interface EncodeOptions {
    * segment in that mode; it throws if the payload has characters outside it.
    */
   mode?: Mode | "auto";
+  /**
+   * Start the symbol with an ECI designator declaring UTF-8 (assignment 26).
+   * Costs 12 bits. Default `false`: most readers already detect UTF-8, and
+   * some older ones mishandle ECI.
+   */
+  eci?: boolean;
 }
 
 /** An encoded QR symbol. */
@@ -118,9 +124,11 @@ export function buildCodewords(
   segments: readonly Segment[],
   version: number,
   ec: EcLevel,
+  eci = false,
 ): Uint8Array {
   const capacity = dataCodewords(version, ec) * 8;
   const bb = new BitBuffer();
+  if (eci) bb.push(0x71a, 12); // ECI mode 0111, then assignment 26 as 00011010
   writeSegments(bb, bytes, segments, version);
 
   bb.push(0, Math.min(4, capacity - bb.bits.length)); // terminator
@@ -182,10 +190,11 @@ function checkInt(name: string, value: number, min: number, max: number) {
  * (the character-count fields widen at versions 10 and 27).
  *
  * Strings are encoded as UTF-8 (via `TextEncoder`), so Arabic, CJK and emoji
- * survive the round trip; lone surrogates become U+FFFD. No ECI header is
- * written: ISO/IEC 18004 nominally defaults byte mode to ISO-8859-1, but
- * mainstream readers (iOS and Android cameras, ZXing, jsQR) detect UTF-8.
- * Pass a `Uint8Array` to encode raw bytes exactly as given.
+ * survive the round trip; lone surrogates become U+FFFD. Unless `eci` is set
+ * no ECI header is written: ISO/IEC 18004 nominally defaults byte mode to
+ * ISO-8859-1, but mainstream readers (iOS and Android cameras, ZXing, jsQR)
+ * detect UTF-8. A `Uint8Array` is taken as raw bytes and decodes back exactly
+ * as given.
  *
  * @throws {QrTooLongError} if the payload exceeds a version-40 symbol.
  * @throws {RangeError} on an invalid option.
@@ -224,14 +233,14 @@ export function encode(
     const range = v <= 9 ? 0 : v <= 26 ? 1 : 2;
     segments = byRange[range] ??=
       forced >= 0 ? [{ mode: mode as Mode, length: bytes.length }] : optimalSegments(bytes, v);
-    if (segmentBits(segments, v) <= dataCodewords(v, ec) * 8) {
+    if (segmentBits(segments, v) + (opts.eci ? 12 : 0) <= dataCodewords(v, ec) * 8) {
       version = v;
       break;
     }
   }
   if (version === 0) throw new QrTooLongError(bytes.length, ec);
 
-  const data = buildCodewords(bytes, segments, version, ec);
+  const data = buildCodewords(bytes, segments, version, ec, opts.eci);
   const base = functionGrid(version);
   placeCodewords(base, data);
 
