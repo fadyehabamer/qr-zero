@@ -60,8 +60,17 @@ node --import tsx --test test/segment.test.ts
 
 ## Trying it out locally
 
-There is no demo site; the README is the documentation. To try the CLI
-without building:
+The quickest way to try a change is the playground in `playground/`:
+
+```sh
+npm run playground   # build, then serve on http://localhost:5173
+```
+
+It imports the freshly built `dist/`, so rerun it (or `npm run build` in a
+second terminal) after changing `src/`. Its pure helpers live in
+`playground/src/` and are tested in `test/playground.test.ts`.
+
+To try the CLI without building:
 
 ```sh
 npx tsx src/cli.ts "https://example.com"
@@ -96,6 +105,7 @@ README comes from `npm run size`.
 | `src/react.ts` | The `qr-zero/react` component. |
 | `src/cli.ts` | The `qr-zero` command-line tool. |
 | `test/` | `node:test` suites. `helpers.ts` has the jsQR round-trip helpers. |
+| `playground/` | The browser playground, built with `playground/build.mjs` and deployed to GitHub Pages. |
 | `scripts/` | `size.mjs` (bundle sizes) and `check-pack.sh` (packed-tarball check). |
 
 ## Tests

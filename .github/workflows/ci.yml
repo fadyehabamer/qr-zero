@@ -26,6 +26,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: Playground builds
+        run: node playground/build.mjs
       - name: Packed tarball works via import and require
         run: bash scripts/check-pack.sh
       - name: Bundle size

@@ -74,6 +74,8 @@
   },
   "scripts": {
     "build": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\" && tsup",
+    "build:playground": "npm run build && node playground/build.mjs",
+    "playground": "npm run build && node playground/build.mjs --serve",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test test/*.test.ts",
     "size": "npm run build && node scripts/size.mjs",

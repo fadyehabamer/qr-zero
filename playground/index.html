@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>qr-zero playground</title>
+    <meta name="description" content="Try qr-zero, the zero-dependency QR code encoder, in the browser: live SVG preview, every encoder option, PNG and SVG downloads and a ready-to-paste code snippet." />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+    <script>
+      try {
+        const theme = localStorage.getItem("qr-zero-theme");
+        if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+      } catch {}
+    </script>
+    <script type="module" src="main.js"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to the playground</a>
+    <header class="top">
+      <div class="brand">
+        <h1>qr-zero <span class="tag">playground</span></h1>
+        <p class="lede">A zero-dependency QR code encoder. Everything below runs in your browser with <span id="version">the current build</span>.</p>
+      </div>
+      <div class="top-actions">
+        <label class="theme">
+          <span>Theme</span>
+          <select id="theme">
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </label>
+        <a class="button ghost" href="https://github.com/fadyehabamer/qr-zero">GitHub</a>
+      </div>
+    </header>
+
+    <main id="main" class="layout">
+      <section class="panel input-panel" aria-labelledby="content-heading">
+        <h2 id="content-heading">Content</h2>
+
+        <div class="presets" role="group" aria-label="Presets">
+          <button type="button" class="chip" data-preset="url" aria-pressed="false">URL</button>
+          <button type="button" class="chip" data-preset="wifi" aria-pressed="false" aria-controls="wifi-form">Wi-Fi</button>
+          <button type="button" class="chip" data-preset="vcard" aria-pressed="false" aria-controls="vcard-form">vCard</button>
+          <button type="button" class="chip" data-preset="arabic" aria-pressed="false">Arabic text</button>
+        </div>
+
+        <fieldset id="wifi-form" class="builder" hidden>
+          <legend>Wi-Fi network</legend>
+          <div class="field">
+            <label for="wifi-ssid">Network name (SSID)</label>
+            <input id="wifi-ssid" type="text" autocomplete="off" spellcheck="false" dir="auto" />
+          </div>
+          <div class="field">
+            <label for="wifi-password">Password</label>
+            <input id="wifi-password" type="text" autocomplete="off" spellcheck="false" dir="auto" />
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="wifi-security">Security</label>
+              <select id="wifi-security">
+                <option value="WPA">WPA / WPA2 / WPA3</option>
+                <option value="WEP">WEP</option>
+                <option value="nopass">None</option>
+              </select>
+            </div>
+            <label class="check">
+              <input id="wifi-hidden" type="checkbox" />
+              <span>Hidden network</span>
+            </label>
+          </div>
+          <p class="hint">Special characters (<code>\ ; , : "</code>) are escaped for you.</p>
+        </fieldset>
+
+        <fieldset id="vcard-form" class="builder" hidden>
+          <legend>Contact card</legend>
+          <div class="row">
+            <div class="field">
+              <label for="vcard-first">First name</label>
+              <input id="vcard-first" type="text" autocomplete="off" dir="auto" />
+            </div>
+            <div class="field">
+              <label for="vcard-last">Last name</label>
+              <input id="vcard-last" type="text" autocomplete="off" dir="auto" />
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="vcard-org">Organisation</label>
+              <input id="vcard-org" type="text" autocomplete="off" dir="auto" />
+            </div>
+            <div class="field">
+              <label for="vcard-title">Job title</label>
+              <input id="vcard-title" type="text" autocomplete="off" dir="auto" />
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="vcard-phone">Phone</label>
+              <input id="vcard-phone" type="tel" autocomplete="off" />
+            </div>
+            <div class="field">
+              <label for="vcard-email">Email</label>
+              <input id="vcard-email" type="email" autocomplete="off" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="vcard-url">Website</label>
+            <input id="vcard-url" type="url" autocomplete="off" />
+          </div>
+        </fieldset>
+
+        <div class="field">
+          <label for="text">Text to encode</label>
+          <textarea id="text" rows="6" dir="auto" spellcheck="false" aria-describedby="text-count"></textarea>
+          <p id="text-count" class="hint"></p>
+        </div>
+
+        <h2 id="options-heading">Options</h2>
+        <div class="options" role="group" aria-labelledby="options-heading">
+          <fieldset class="segmented">
+            <legend>Error correction</legend>
+            <label><input type="radio" name="ec" value="L" /><span>L <small>7%</small></span></label>
+            <label><input type="radio" name="ec" value="M" checked /><span>M <small>15%</small></span></label>
+            <label><input type="radio" name="ec" value="Q" /><span>Q <small>25%</small></span></label>
+            <label><input type="radio" name="ec" value="H" /><span>H <small>30%</small></span></label>
+          </fieldset>
+
+          <div class="row">
+            <div class="field">
+              <label for="mode">Mode</label>
+              <select id="mode">
+                <option value="auto">Auto (optimal segments)</option>
+                <option value="numeric">Numeric</option>
+                <option value="alphanumeric">Alphanumeric</option>
+                <option value="byte">Byte</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="mask">Mask</label>
+              <select id="mask">
+                <option value="auto">Auto (lowest penalty)</option>
+                <option value="0">0</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label for="min-version">Minimum version</label>
+              <input id="min-version" type="number" min="1" max="40" step="1" value="1" inputmode="numeric" />
+            </div>
+            <label class="check">
+              <input id="eci" type="checkbox" aria-describedby="eci-hint" />
+              <span>UTF-8 ECI designator</span>
+            </label>
+          </div>
+          <p id="eci-hint" class="hint">ECI adds 12 bits and makes the charset explicit. Some older scanners mishandle it.</p>
+
+          <div class="row">
+            <div class="field">
+              <label for="margin">Margin <output id="margin-value" for="margin">4</output> modules</label>
+              <input id="margin" type="range" min="0" max="10" step="1" value="4" />
+            </div>
+            <div class="field">
+              <label for="module-size">Module size <output id="module-size-value" for="module-size">4</output> px</label>
+              <input id="module-size" type="range" min="1" max="20" step="1" value="4" />
+            </div>
+          </div>
+
+          <div class="row colours">
+            <div class="field colour">
+              <label for="dark">Dark modules</label>
+              <input id="dark" type="color" value="#000000" />
+            </div>
+            <div class="field colour">
+              <label for="light">Background</label>
+              <input id="light" type="color" value="#ffffff" />
+            </div>
+            <label class="check">
+              <input id="transparent" type="checkbox" />
+              <span>Transparent background</span>
+            </label>
+          </div>
+          <p id="contrast" class="hint warn" hidden>The dark modules are lighter than the background. Many scanners cannot read inverted codes.</p>
+        </div>
+      </section>
+
+      <div class="output-column">
+        <section class="panel preview-panel" aria-labelledby="preview-heading">
+          <h2 id="preview-heading">Preview</h2>
+          <div class="stage">
+            <div id="preview" class="preview" role="img" aria-label="QR code preview"></div>
+            <div id="error" class="error" role="alert" hidden></div>
+          </div>
+          <div class="actions">
+            <button type="button" class="button" id="download-svg">Download SVG</button>
+            <button type="button" class="button" id="download-png">Download PNG</button>
+            <button type="button" class="button secondary" id="copy-svg">Copy SVG markup</button>
+          </div>
+          <p id="status" class="status" role="status" aria-live="polite"></p>
+        </section>
+
+        <section class="panel" aria-labelledby="details-heading">
+          <h2 id="details-heading">Details</h2>
+          <dl class="details">
+            <div><dt>Version</dt><dd id="info-version">–</dd></div>
+            <div><dt>Size</dt><dd id="info-size">–</dd></div>
+            <div><dt>Mask</dt><dd id="info-mask">–</dd></div>
+            <div><dt>Payload</dt><dd id="info-bytes">–</dd></div>
+          </dl>
+          <div class="usage">
+            <label for="info-meter">Data capacity used</label>
+            <meter id="info-meter" min="0" max="1" low="0.75" high="0.95" optimum="0.2" value="0"></meter>
+            <p id="info-capacity" class="hint"></p>
+          </div>
+          <h3>Segments</h3>
+          <ol id="info-segments" class="segments"></ol>
+        </section>
+
+        <section class="panel" aria-labelledby="code-heading">
+          <div class="heading-row">
+            <h2 id="code-heading">Code</h2>
+            <button type="button" class="button secondary small" id="copy-code">Copy code</button>
+          </div>
+          <pre class="code" tabindex="0" aria-labelledby="code-heading"><code id="snippet"></code></pre>
+        </section>
+      </div>
+    </main>
+
+    <footer class="foot">
+      <p>
+        MIT licensed. Source, docs and issues on
+        <a href="https://github.com/fadyehabamer/qr-zero">GitHub</a>.
+        “QR Code” is a registered trademark of DENSO WAVE INCORPORATED.
+      </p>
+    </footer>
+  </body>
+</html>
