@@ -5,6 +5,8 @@
 
 A zero-dependency QR code encoder for JavaScript and TypeScript.
 
+**[Playground](https://fadyehabamer.github.io/qr-zero/)**: type some text and watch the code change, try every option, and download the result as SVG or PNG.
+
 - **No dependencies.** The whole encoder is a few small files: bit stream, mode segmentation, Reed–Solomon over GF(256), block interleaving, all eight masks and the penalty scoring that picks between them.
 - **Small.** 4.8 kB minified + gzipped for the full API, 3.7 kB if you only import `encode` ([details](#bundle-size)).
 - **Numeric, alphanumeric and byte modes.** The input is split into mixed-mode segments automatically, using the split with the fewest bits, so digits and uppercase text produce smaller symbols. Versions 1–40 and error-correction levels L, M, Q and H. UTF-8 in, so Arabic, CJK and emoji work.
@@ -304,7 +306,7 @@ npm run typecheck
 npm run check:pack  # build, npm pack, install the tarball, import + require it
 ```
 
-The suite (103 tests) covers:
+The suite (111 tests) covers:
 
 - **GF(256) and Reed–Solomon**: checked against the spec's generator polynomials and worked examples.
 - **Capacities, format bits and version bits**: byte, numeric and alphanumeric capacities for every version and EC level (checked against Table 7 and the `qrcode` package), each capacity boundary hit with a real payload, character-count widths per version range, the `MAX_BYTES` limit and `QrTooLongError`; all 32 format words and the version words, read back out of encoded matrices.
@@ -313,8 +315,20 @@ The suite (103 tests) covers:
 - **Reference comparison**: about 800 symbols compared module by module with the **`qrcode`** package, given the same segments, version and mask: byte, numeric and alphanumeric at every version and level (23-L included) and 160 mixed-mode inputs. Inputs are also checked against `qrcode`'s own automatic segmentation. That library optimises for an estimated version, so its split sometimes differs. When the splits match, the symbols must match module for module. When they differ, both must decode to the same text and qr-zero's symbol must be no larger.
 - **Renderers**: SVG, data URI, `toSvgPath`, text, and `toCanvas` against a recording 2D context; the React component rendered with `react-dom/server` and compared with `toSvg`; a check that the core entry never imports React.
 - **CLI**: the `qr-zero` bin run through `child_process`, covering terminal output parsed back into modules, SVG files, stdin, options and exit codes.
+- **Playground helpers**: Wi-Fi and vCard escaping (with a jsQR round trip), the generated code snippet, which is run and must reproduce the playground's SVG, and the data-bit count against the encoder's own.
 
 `npm run check:pack` also installs the packed tarball and checks the `qr-zero/react` subpath (ESM, CJS and types) and the `qr-zero` bin.
+
+## Playground
+
+The [playground](https://fadyehabamer.github.io/qr-zero/) lives in `playground/` and is built from the local source, so it always matches the code on `main`. It shows the version, mask, segments and capacity for your input, has presets for URLs, Wi-Fi networks, contact cards and Arabic text, and gives you a code snippet with the options you picked. To run it locally:
+
+```sh
+npm run playground        # build, then serve on http://localhost:5173 and rebuild on change
+npm run build:playground  # static site in playground/dist
+```
+
+It is bundled with esbuild, which is already a dev dependency, and it is not part of the published package.
 
 ## Credits
 

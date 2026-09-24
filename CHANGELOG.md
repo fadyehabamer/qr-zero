@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- A browser playground at <https://fadyehabamer.github.io/qr-zero/>, built
+  from the local source and deployed to GitHub Pages: live preview, every
+  encoder option, segment and capacity details, SVG and PNG downloads, a code
+  snippet for the current options, and presets for URLs, Wi-Fi, vCards and
+  Arabic text. It is not part of the npm package.
+
 ## [0.2.0] - 2026-09-24
 
 ### Added
@@ -56,5 +66,6 @@ Initial release.
 - `QrTooLongError`, `MAX_BYTES`, `byteCapacity()` and `dataCodewords()`.
 - ESM + CJS builds with TypeScript declarations; zero runtime dependencies.
 
+[Unreleased]: https://github.com/fadyehabamer/qr-zero/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/fadyehabamer/qr-zero/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/fadyehabamer/qr-zero/releases/tag/v0.1.0
