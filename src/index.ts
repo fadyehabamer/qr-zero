@@ -5,8 +5,8 @@
  */
 export { encode, QrTooLongError } from "./encode";
 export type { EncodeOptions, QrCode } from "./encode";
-export { byteCapacity, dataCodewords, MAX_BYTES } from "./tables";
-export type { EcLevel } from "./tables";
+export { byteCapacity, capacity, dataCodewords, MAX_BYTES } from "./tables";
+export type { EcLevel, Mode } from "./tables";
 export { toDataURL, toSvg } from "./svg";
 export type { SvgOptions } from "./svg";
 export { toString } from "./text";
