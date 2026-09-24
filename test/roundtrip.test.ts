@@ -2,7 +2,17 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import jsQR from "jsqr";
 import { byteCapacity, encode, MAX_BYTES, type EcLevel, type EncodeOptions } from "../src/index";
-import { ARABIC_EMOJI, ASCII, randomText, rasterize } from "./helpers";
+import { capacity } from "../src/index";
+import {
+  ALPHANUMERIC,
+  ARABIC_EMOJI,
+  ASCII,
+  DIGITS,
+  mixedText,
+  randomChars,
+  randomText,
+  rasterize,
+} from "./helpers";
 
 const LEVELS: EcLevel[] = ["L", "M", "Q", "H"];
 
@@ -25,6 +35,11 @@ function roundTrip(text: string, ec: EcLevel, expectVersion?: number, options: E
   assert.ok(decoded, `jsQR could not read ${ec} v${qr.version} (${qr.bytes} bytes)`);
   assert.equal(decoded.version, qr.version);
   assert.deepEqual(Uint8Array.from(decoded.binaryData), new TextEncoder().encode(text));
+  assert.deepEqual(
+    decoded.chunks.map((c) => c.type),
+    qr.segments.map((s) => s.mode),
+    "jsQR saw the segments qr-zero wrote",
+  );
   return decoded;
 }
 
@@ -70,5 +85,34 @@ test("jsQR round-trip: every forced mask decodes", () => {
     const { data, width, height } = rasterize(qr);
     const decoded = jsQR(data, width, height, { inversionAttempts: "dontInvert" });
     assert.equal(decoded?.data, text);
+  }
+});
+
+for (const mode of ["numeric", "alphanumeric"] as const) {
+  test(`jsQR round-trip: ${mode} mode, every version filled to capacity`, () => {
+    const pool = mode === "numeric" ? DIGITS : ALPHANUMERIC;
+    for (const ec of LEVELS) {
+      for (let v = 1; v <= 40; v++) {
+        if (JSQR_UNREADABLE.has(`${v}-${ec}`)) continue;
+        const text = randomChars(capacity(v, ec, mode), pool, v * 53 + ec.charCodeAt(0));
+        roundTrip(text, ec, v, { mode });
+      }
+    }
+  });
+}
+
+test("jsQR round-trip: automatic mixed segmentation", () => {
+  const cases = [
+    "0",
+    "12",
+    "HELLO WORLD",
+    "HTTPS://GITHUB.COM/FADYEHABAMER/QR-ZERO",
+    "tel:+201234567890",
+    "Invoice 2026-000123456789, total EGP 1234567.89",
+    "مرحبا 0123456789012345 👋",
+  ];
+  for (const ec of LEVELS) {
+    for (const text of cases) roundTrip(text, ec);
+    for (let i = 0; i < 40; i++) roundTrip(mixedText(1 + (i % 15), i * 7 + ec.charCodeAt(0)), ec);
   }
 });

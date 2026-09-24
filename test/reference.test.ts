@@ -1,8 +1,19 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import QRCode from "qrcode";
-import { byteCapacity, encode, type EcLevel, type QrCode } from "../src/index";
-import { ARABIC_EMOJI, ASCII, randomText, rng } from "./helpers";
+import jsQR from "jsqr";
+import { byteCapacity, capacity, encode, type EcLevel, type QrCode } from "../src/index";
+import {
+  ALPHANUMERIC,
+  ARABIC_EMOJI,
+  ASCII,
+  DIGITS,
+  mixedText,
+  randomChars,
+  randomText,
+  rasterize,
+  rng,
+} from "./helpers";
 
 const LEVELS: EcLevel[] = ["L", "M", "Q", "H"];
 
@@ -68,4 +79,76 @@ test("matches qrcode at exact byte-mode version capacities", () => {
       check(randomText(byteCapacity(v, ec), ASCII, v), { ecLevel: ec, mode: "byte" });
     }
   }
+});
+
+for (const mode of ["numeric", "alphanumeric"] as const) {
+  test(`matches qrcode module-for-module, ${mode} mode, every version and EC level`, () => {
+    const pool = mode === "numeric" ? DIGITS : ALPHANUMERIC;
+    for (const ec of LEVELS) {
+      const next = rng(ec.charCodeAt(0) + mode.length);
+      for (let v = 1; v <= 40; v++) {
+        const lo = v === 1 ? 1 : capacity(v - 1, ec, mode) + 1;
+        const len = lo + Math.floor(next() * (capacity(v, ec, mode) - lo + 1));
+        const text = randomChars(len, pool, v * 31);
+        const qr = encode(text, { ecLevel: ec, mode });
+        assert.equal(qr.version, v);
+        assertMatchesReference(qr, new TextEncoder().encode(text));
+      }
+    }
+  });
+}
+
+test("matches qrcode module-for-module on mixed segmentations", () => {
+  let multi = 0;
+  for (let i = 0; i < 160; i++) {
+    const text = mixedText(1 + (i % 12), i);
+    const qr = encode(text, LEVELS[i % 4]);
+    if (qr.segments.length > 1) multi++;
+    assertMatchesReference(qr, new TextEncoder().encode(text));
+  }
+  assert.ok(multi > 100, `only ${multi} inputs had more than one segment`);
+});
+
+/**
+ * `qrcode` optimises its segments for an estimated version rather than per
+ * version range, so its split can legitimately differ. Where it matches,
+ * the symbols must match module for module; where it differs, both must
+ * decode to the same text and qr-zero must never need a larger version.
+ */
+test("agrees with qrcode's own automatic segmentation", () => {
+  let same = 0;
+  let different = 0;
+  const inputs = [
+    "0123456789",
+    "HELLO WORLD",
+    "HTTPS://EXAMPLE.COM/PATH?Q=1",
+    "https://example.com/?id=12345678901234567890",
+    "ORDER-000123456789/ABC",
+    ...Array.from({ length: 80 }, (_, i) => mixedText(1 + (i % 9), 1000 + i)),
+  ];
+  for (const [i, text] of inputs.entries()) {
+    const ec = LEVELS[i % 4];
+    const qr = encode(text, ec);
+    const auto = QRCode.create(text, { errorCorrectionLevel: ec });
+    const theirs = auto.segments.map((s) => `${s.mode.id.toLowerCase()}:${s.getLength()}`);
+    const ours = qr.segments.map((s) => `${s.mode}:${s.length}`);
+    assert.ok(qr.version <= auto.version, `"${text}": v${qr.version} > qrcode's v${auto.version}`);
+    if (theirs.join() === ours.join() && auto.version === qr.version) {
+      same++;
+      assertMatchesReference(qr, new TextEncoder().encode(text));
+    } else {
+      different++;
+      const size = auto.modules.size;
+      const modules = Array.from({ length: size }, (_, y) =>
+        Array.from({ length: size }, (_, x) => Boolean(auto.modules.get(y, x))),
+      );
+      for (const symbol of [qr, { ...qr, size, modules }]) {
+        const { data, width, height } = rasterize(symbol);
+        const decoded = jsQR(data, width, height, { inversionAttempts: "dontInvert" });
+        assert.equal(decoded?.data, text);
+      }
+    }
+  }
+  assert.equal(same + different, inputs.length);
+  assert.ok(same > inputs.length / 2, `segmentations matched for only ${same} inputs`);
 });
