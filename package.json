@@ -1,12 +1,15 @@
 {
   "name": "qr-zero",
-  "version": "0.1.0",
-  "description": "Zero-dependency QR code encoder for JavaScript/TypeScript — byte mode, versions 1–40, EC L/M/Q/H, SVG output",
+  "version": "0.2.0",
+  "description": "Zero-dependency QR code encoder for JavaScript/TypeScript — numeric, alphanumeric and byte modes with automatic segmentation, versions 1–40, EC L/M/Q/H, SVG, canvas and terminal output, React component and CLI",
   "keywords": [
     "qr",
     "qrcode",
     "qr-code",
     "svg",
+    "canvas",
+    "react",
+    "cli",
     "zero-dependency",
     "typescript",
     "encoder"
