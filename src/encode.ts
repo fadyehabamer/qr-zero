@@ -118,6 +118,13 @@ export function buildCodewords(bytes: Uint8Array, version: number, ec: EcLevel):
   return out;
 }
 
+/** UTF-8 bytes of a string, or a byte array passed through unchanged. */
+export function toBytes(data: string | Uint8Array): Uint8Array {
+  if (typeof data === "string") return new TextEncoder().encode(data);
+  if (data instanceof Uint8Array) return data;
+  throw new TypeError("encode() expects a string or a Uint8Array");
+}
+
 function checkInt(name: string, value: number, min: number, max: number) {
   if (!Number.isInteger(value) || value < min || value > max) {
     throw new RangeError(`${name} must be an integer from ${min} to ${max}, got ${value}`);
@@ -125,14 +132,24 @@ function checkInt(name: string, value: number, min: number, max: number) {
 }
 
 /**
- * Encode text as the smallest QR symbol that fits at the requested EC level.
- * Strings are encoded as UTF-8 in byte mode. Unless `mask` is given, all
- * eight masks are tried and the one with the lowest penalty score wins.
+ * Encode a payload as the smallest QR symbol that fits at the requested EC
+ * level. Unless `mask` is given, all eight masks are tried and the one with
+ * the lowest penalty score wins.
+ *
+ * Strings are encoded as UTF-8 (via `TextEncoder`), so Arabic, CJK and emoji
+ * survive the round trip; lone surrogates become U+FFFD. No ECI header is
+ * written: ISO/IEC 18004 nominally defaults byte mode to ISO-8859-1, but
+ * mainstream readers (iOS and Android cameras, ZXing, jsQR) detect UTF-8.
+ * Pass a `Uint8Array` to encode raw bytes exactly as given.
  *
  * @throws {QrTooLongError} if the payload exceeds a version-40 symbol.
  * @throws {RangeError} on an invalid option.
+ * @throws {TypeError} if the payload is neither a string nor a Uint8Array.
  */
-export function encode(text: string, options: EncodeOptions | EcLevel = {}): QrCode {
+export function encode(
+  input: string | Uint8Array,
+  options: EncodeOptions | EcLevel = {},
+): QrCode {
   const opts: EncodeOptions = typeof options === "string" ? { ecLevel: options } : options;
   const ec = opts.ecLevel ?? "M";
   if (!EC_LEVELS.includes(ec)) {
@@ -142,8 +159,7 @@ export function encode(text: string, options: EncodeOptions | EcLevel = {}): QrC
   checkInt("minVersion", minVersion, MIN_VERSION, MAX_VERSION);
   if (opts.mask !== undefined) checkInt("mask", opts.mask, 0, 7);
 
-  if (typeof text !== "string") throw new TypeError("encode() expects a string");
-  const bytes = new TextEncoder().encode(text);
+  const bytes = toBytes(input);
 
   let version = 0;
   for (let v = minVersion; v <= MAX_VERSION; v++) {
