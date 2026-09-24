@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/fadyehabamer/qr-zero#readme
+    about: The README covers every option, the CLI and the known limits.
+  - name: Report a security vulnerability
+    url: https://github.com/fadyehabamer/qr-zero/blob/main/SECURITY.md
+    about: Please report security problems privately, not in a public issue.
