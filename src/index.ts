@@ -9,7 +9,7 @@ export type { EncodeOptions, QrCode } from "./encode";
 export { byteCapacity, capacity, dataCodewords, MAX_BYTES } from "./tables";
 export type { EcLevel, Mode } from "./tables";
 export type { Segment } from "./segment";
-export { toDataURL, toSvg } from "./svg";
+export { toDataURL, toSvg, toSvgPath } from "./svg";
 export type { SvgOptions } from "./svg";
 export { toCanvas } from "./canvas";
 export type { CanvasContext2D, CanvasLike, CanvasOptions } from "./canvas";
