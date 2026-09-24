@@ -11,5 +11,7 @@ export type { EcLevel, Mode } from "./tables";
 export type { Segment } from "./segment";
 export { toDataURL, toSvg } from "./svg";
 export type { SvgOptions } from "./svg";
+export { toCanvas } from "./canvas";
+export type { CanvasContext2D, CanvasLike, CanvasOptions } from "./canvas";
 export { toString } from "./text";
 export type { TextOptions } from "./text";
