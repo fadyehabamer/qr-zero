@@ -1,0 +1,45 @@
+name: Feature request
+description: Suggest a new option, renderer, mode or improvement.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        qr-zero stays small and dependency-free. Please check the [limits and non-goals](https://github.com/fadyehabamer/qr-zero#limits-and-non-goals) in the README first.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: The use case behind the request.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed API
+      description: A sketch of the function, option or CLI flag you have in mind.
+      render: ts
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you tried, or how other libraries handle it.
+  - type: dropdown
+    id: size
+    attributes:
+      label: Bundle size
+      description: Would this add code to the core `encode` path, or can it live in a separate, tree-shakeable export?
+      options:
+        - Separate export / CLI only
+        - Adds to the core
+        - Not sure
+    validations:
+      required: true
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contributing
+      options:
+        - label: I'd like to work on this myself
