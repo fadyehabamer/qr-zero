@@ -1,7 +1,6 @@
 # qr-zero
 
 [![CI](https://github.com/fadyehabamer/qr-zero/actions/workflows/ci.yml/badge.svg)](https://github.com/fadyehabamer/qr-zero/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/qr-zero.svg)](https://www.npmjs.com/package/qr-zero)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
 A zero-dependency QR code encoder for JavaScript and TypeScript.
