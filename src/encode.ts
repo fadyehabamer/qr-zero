@@ -7,7 +7,7 @@ import {
   placeCodewords,
   type Grid,
 } from "./matrix";
-import { ALPHANUMERIC, byteClass, optimalSegments, segmentBits, type Segment } from "./segment";
+import { alphanumericCode, byteClass, optimalSegments, segmentBits, type Segment } from "./segment";
 import {
   countBits,
   dataCodewords,
@@ -73,10 +73,7 @@ export class QrTooLongError extends RangeError {
   readonly maxBytes: number;
 
   constructor(bytes: number, ecLevel: EcLevel, maxBytes: number = MAX_BYTES[ecLevel]) {
-    super(
-      `QR payload of ${bytes} bytes does not fit in a version-40 symbol at EC level ${ecLevel} ` +
-        `(at most ${maxBytes} bytes in byte mode; digits and uppercase text pack tighter).`,
-    );
+    super(`QR payload of ${bytes} bytes does not fit at EC level ${ecLevel} (byte mode holds ${maxBytes}).`);
     this.name = "QrTooLongError";
     this.bytes = bytes;
     this.ecLevel = ecLevel;
@@ -106,10 +103,10 @@ function writeSegments(bb: BitBuffer, data: Uint8Array, segments: readonly Segme
         bb.push(v, k * 3 + 1); // 3 digits → 10 bits, 2 → 7, 1 → 4
       }
     } else if (mode === "alphanumeric") {
-      const code = (b: number) => ALPHANUMERIC.indexOf(String.fromCharCode(b));
       for (; i < end; i += 2) {
-        if (i + 1 < end) bb.push(code(data[i]) * 45 + code(data[i + 1]), 11);
-        else bb.push(code(data[i]), 6);
+        const a = alphanumericCode(data[i]);
+        if (i + 1 < end) bb.push(a * 45 + alphanumericCode(data[i + 1]), 11);
+        else bb.push(a, 6);
       }
     } else {
       for (; i < end; i++) bb.push(data[i], 8);

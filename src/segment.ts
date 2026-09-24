@@ -10,17 +10,26 @@ export interface Segment {
 /** The 45-character alphanumeric set, in code-value order. */
 export const ALPHANUMERIC = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
 
+/** A byte's alphanumeric code value, or -1 if it is outside the set. */
+export const alphanumericCode = (b: number): number => ALPHANUMERIC.indexOf(String.fromCharCode(b));
+
 /**
  * The cheapest mode that can hold a byte: 0 numeric, 1 alphanumeric, 2 byte.
  * Every mode can hold everything a cheaper mode can. UTF-8 continuation and
  * lead bytes are all ≥ 0x80, so a multi-byte character is never split.
  */
 export const byteClass = (b: number): number =>
-  b >= 48 && b <= 57 ? 0 : ALPHANUMERIC.indexOf(String.fromCharCode(b)) >= 0 ? 1 : 2;
+  b >= 48 && b <= 57 ? 0 : alphanumericCode(b) >= 0 ? 1 : 2;
+
+/**
+ * Cost per character in sixths of a bit, by mode index: a digit is 10/3
+ * bits, an alphanumeric character 11/2, a byte 8. Rounding a run's total up
+ * to whole bits gives exactly what packing into 10- and 11-bit groups costs.
+ */
+const SIXTHS = [20, 33, 48];
 
 /** Payload bits (after the header) for `n` characters in mode index `m`. */
-const payloadBits = (m: number, n: number): number =>
-  m === 0 ? Math.floor(n / 3) * 10 + [0, 4, 7][n % 3] : m === 1 ? Math.floor(n / 2) * 11 + (n % 2) * 6 : n * 8;
+const payloadBits = (m: number, n: number): number => Math.ceil((n * SIXTHS[m]) / 6);
 
 /**
  * Total bits of the segments at a version, headers included. `Infinity` if a
@@ -39,16 +48,14 @@ export function segmentBits(segments: readonly Segment[], version: number): numb
 /**
  * The segmentation of `data` with the fewest bits at a version, found by
  * dynamic programming over (position, mode). Costs are kept in sixths of a
- * bit — a digit is 10/3 bits, an alphanumeric character 11/2 — and rounded
- * up to whole bits wherever a segment closes, which is exactly what the
- * packing into 10- and 11-bit groups costs. Keeping only the cheapest cost
- * per mode is therefore optimal, not just a heuristic.
+ * bit and rounded up to whole bits wherever a segment closes, so they are
+ * exact, and keeping only the cheapest cost per mode is optimal, not just a
+ * heuristic.
  */
 export function optimalSegments(data: Uint8Array, version: number): Segment[] {
   const n = data.length;
   if (n === 0) return [{ mode: "byte", length: 0 }];
   const head = MODES.map((m) => (4 + countBits(m, version)) * 6);
-  const step = [20, 33, 48];
   const ceil = (c: number) => Math.ceil(c / 6) * 6;
 
   // from[i * 3 + m]: the mode of byte i - 1 on the cheapest path that
@@ -68,7 +75,7 @@ export function optimalSegments(data: Uint8Array, version: number): Segment[] {
           prev = k;
         }
       }
-      next[m] = best + step[m];
+      next[m] = best + SIXTHS[m];
       from[i * 3 + m] = prev;
     }
     cost = next;

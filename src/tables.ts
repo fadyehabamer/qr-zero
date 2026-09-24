@@ -89,7 +89,8 @@ export function capacity(version: number, ec: EcLevel, mode: Mode = "byte"): num
 }
 
 /** Largest byte-mode payload a given version holds at a given EC level. */
-export const byteCapacity = (version: number, ec: EcLevel): number => capacity(version, ec);
+export const byteCapacity = (version: number, ec: EcLevel): number =>
+  Math.floor((dataCodewords(version, ec) * 8 - 4 - countBits("byte", version)) / 8);
 
 /** Longest payload (in bytes) a version-40 symbol holds at each EC level. */
 export const MAX_BYTES: Readonly<Record<EcLevel, number>> = {
