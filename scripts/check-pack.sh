@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Pack the package, install the tarball into a throwaway project and check
-# that both `import` (ESM) and `require` (CJS) resolve and work, and that the
-# bundled type declarations resolve under TypeScript's node16 resolution.
+# that both `import` (ESM) and `require` (CJS) resolve and work, that the
+# bundled type declarations resolve under TypeScript's node16 resolution,
+# that the `qr-zero/react` subpath works, and that the `qr-zero` bin runs.
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -14,7 +15,15 @@ tar -tzf "$tmp/$tarball" | sed 's/^/  /'
 
 cd "$tmp"
 npm init -y >/dev/null
-npm install --silent --no-audit --no-fund "./$tarball" "typescript@$(node -p "require('$root/node_modules/typescript/package.json').version")"
+dev_version() { node -p "require('$root/node_modules/$1/package.json').version"; }
+npm install --silent --no-audit --no-fund "./$tarball" \
+  "typescript@$(dev_version typescript)" "react@$(dev_version react)" \
+  "react-dom@$(dev_version react-dom)" "@types/react@$(dev_version @types/react)"
+
+if grep -q "react" node_modules/qr-zero/dist/index.js node_modules/qr-zero/dist/index.cjs; then
+  echo "the core bundle mentions react" >&2
+  exit 1
+fi
 
 cat > esm.mjs <<'JS'
 import { encode, toSvg, toDataURL, toString, MAX_BYTES, QrTooLongError } from "qr-zero";
@@ -46,7 +55,39 @@ const qr: qrZero.QrCode = qrZero.encode("typed", "L");
 console.log(qr.size);
 TS
 
+cat > react.mjs <<'JS'
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { QrCode } from "qr-zero/react";
+const html = renderToStaticMarkup(createElement(QrCode, { value: "HELLO", title: "hi", size: 96 }));
+if (!html.startsWith("<svg") || !html.includes("<title>hi</title>") || !html.includes('width="96"')) throw new Error("bad React output");
+console.log("React ESM ok");
+JS
+
+cat > react.cjs <<'JS'
+const { createElement } = require("react");
+const { renderToStaticMarkup } = require("react-dom/server");
+const { QrCode } = require("qr-zero/react");
+if (!renderToStaticMarkup(createElement(QrCode, { value: "x" })).includes("<path")) throw new Error("bad React CJS output");
+console.log("React CJS ok");
+JS
+
+cat > react-types.mts <<'TS'
+import { createElement } from "react";
+import { QrCode, type QrCodeProps } from "qr-zero/react";
+const props: QrCodeProps = { value: "typed", ecLevel: "H", size: "8rem", className: "qr" };
+console.log(createElement(QrCode, props));
+TS
+
 node esm.mjs
 node cjs.cjs
-npx tsc --noEmit --strict --module node16 --moduleResolution node16 types.mts types.cts
+node react.mjs
+node react.cjs
+npx tsc --noEmit --strict --module node16 --moduleResolution node16 types.mts types.cts react-types.mts
 echo "TypeScript (node16, ESM + CJS) types ok"
+
+svg="$(./node_modules/.bin/qr-zero "HELLO 123" --ec Q --svg -)"
+case "$svg" in "<svg"*"</svg>") ;; *) echo "bad CLI SVG output" >&2; exit 1 ;; esac
+term="$(./node_modules/.bin/qr-zero "https://github.com/fadyehabamer/qr-zero" --margin 1)"
+sed -n 1,3p <<<"$term"
+echo "CLI bin ok: $(./node_modules/.bin/qr-zero --version)"

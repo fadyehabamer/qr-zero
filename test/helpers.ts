@@ -55,3 +55,29 @@ export function randomText(bytes: number, alphabet: string[], seed: number): str
 
 export const ASCII = Array.from({ length: 95 }, (_, i) => String.fromCharCode(32 + i));
 export const ARABIC_EMOJI = [..."مرحبا بالعالم", "😀", "👋🏽", "🇪🇬", "✓", "é", " ", "q", "r"];
+
+export const DIGITS = [..."0123456789"];
+export const ALPHANUMERIC = [..."0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:"];
+
+/** Exactly `length` characters drawn from `alphabet`. */
+export function randomChars(length: number, alphabet: string[], seed: number): string {
+  const next = rng(seed);
+  let out = "";
+  for (let i = 0; i < length; i++) out += alphabet[Math.floor(next() * alphabet.length)];
+  return out;
+}
+
+/**
+ * Text built from runs of digits, uppercase/alphanumeric characters and
+ * lowercase or non-ASCII text, so that the optimal split has several modes.
+ */
+export function mixedText(runs: number, seed: number): string {
+  const next = rng(seed);
+  const pools = [DIGITS, ALPHANUMERIC, [..."abcxyz?&=_", "é", "م", "👋"]];
+  let out = "";
+  for (let r = 0; r < runs; r++) {
+    const pool = pools[Math.floor(next() * pools.length)];
+    out += randomChars(1 + Math.floor(next() * 30), pool, Math.floor(next() * 1e9));
+  }
+  return out;
+}

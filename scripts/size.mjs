@@ -1,10 +1,12 @@
 // Report the minified + gzipped size of the published bundle, both for the
-// whole API and for a typical `encode` + `toSvg` import.
+// whole API and for typical imports. React itself is left out of the
+// `qr-zero/react` figure; the core it imports is counted.
 import { build } from "esbuild";
 import { gzipSync, brotliCompressSync } from "node:zlib";
 
 async function measure(label, contents) {
   const result = await build({
+    external: ["react"],
     stdin: { contents, resolveDir: process.cwd(), loader: "js" },
     bundle: true,
     minify: true,
@@ -23,3 +25,5 @@ async function measure(label, contents) {
 await measure("full API", `export * from "./dist/index.js";`);
 await measure("encode + toSvg", `export { encode, toSvg } from "./dist/index.js";`);
 await measure("encode only", `export { encode } from "./dist/index.js";`);
+await measure("encode + toCanvas", `export { encode, toCanvas } from "./dist/index.js";`);
+await measure("qr-zero/react", `export * from "./dist/react.js";`);

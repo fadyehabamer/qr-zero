@@ -25,6 +25,28 @@ const escapeXml = (s: string) =>
     c === "&" ? "&amp;" : c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === '"' ? "&quot;" : "&apos;",
   );
 
+/**
+ * SVG path data for the dark modules, in module units and offset by
+ * `margin`: one `M x y h n v1 h-n z` rectangle per horizontal run. Use it
+ * for custom SVG markup, or with `new Path2D(d)` on a canvas.
+ */
+export function toSvgPath(qr: QrCode, margin = 0): string {
+  let d = "";
+  for (let y = 0; y < qr.size; y++) {
+    const row = qr.modules[y];
+    for (let x = 0; x < qr.size; ) {
+      if (!row[x]) {
+        x++;
+        continue;
+      }
+      let run = 1;
+      while (x + run < qr.size && row[x + run]) run++;
+      d += `M${x + margin} ${y + margin}h${run}v1h-${run}z`;
+      x += run;
+    }
+  }
+  return d;
+}
 
 /**
  * Render a QR code as a standalone SVG string. Dark modules are merged into
@@ -42,21 +64,7 @@ export function toSvg(qr: QrCode, options: SvgOptions = {}): string {
 
   const dim = qr.size + margin * 2;
   const px = dim * moduleSize;
-
-  let d = "";
-  for (let y = 0; y < qr.size; y++) {
-    const row = qr.modules[y];
-    for (let x = 0; x < qr.size; ) {
-      if (!row[x]) {
-        x++;
-        continue;
-      }
-      let run = 1;
-      while (x + run < qr.size && row[x + run]) run++;
-      d += `M${x + margin} ${y + margin}h${run}v1h-${run}z`;
-      x += run;
-    }
-  }
+  const d = toSvgPath(qr, margin);
 
   const a11y =
     title !== undefined ? ` role="img" aria-label="${escapeXml(title)}"` : "";

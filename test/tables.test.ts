@@ -1,11 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
 import {
   alignmentPositions,
   byteCapacity,
+  capacity,
+  countBits,
   dataCodewords,
   EC_LEVELS,
   MAX_BYTES,
+  MODES,
   rawDataModules,
   symbolSize,
   totalCodewords,
@@ -54,6 +58,48 @@ test("byte-mode capacity (ISO/IEC 18004 Table 7)", () => {
   for (const [v, row] of Object.entries(expected)) {
     EC_LEVELS.forEach((ec, i) => assert.equal(byteCapacity(+v, ec), row[i], `v${v}-${ec}`));
   }
+});
+
+test("numeric and alphanumeric capacity (ISO/IEC 18004 Table 7)", () => {
+  const expected: Record<number, { numeric: number[]; alphanumeric: number[] }> = {
+    1: { numeric: [41, 34, 27, 17], alphanumeric: [25, 20, 16, 10] },
+    9: { numeric: [552, 432, 312, 235], alphanumeric: [335, 262, 189, 143] },
+    10: { numeric: [652, 513, 364, 288], alphanumeric: [395, 311, 221, 174] },
+    40: { numeric: [7089, 5596, 3993, 3057], alphanumeric: [4296, 3391, 2420, 1852] },
+  };
+  for (const [v, rows] of Object.entries(expected)) {
+    for (const mode of ["numeric", "alphanumeric"] as const) {
+      EC_LEVELS.forEach((ec, i) =>
+        assert.equal(capacity(+v, ec, mode), rows[mode][i], `v${v}-${ec} ${mode}`),
+      );
+    }
+  }
+});
+
+test("capacity agrees with the qrcode package for every version, level and mode", () => {
+  const require = createRequire(import.meta.url);
+  const { getCapacity } = require("qrcode/lib/core/version");
+  const refMode = require("qrcode/lib/core/mode");
+  const refLevel = require("qrcode/lib/core/error-correction-level");
+  const toRef = { numeric: refMode.NUMERIC, alphanumeric: refMode.ALPHANUMERIC, byte: refMode.BYTE };
+  for (const ec of EC_LEVELS) {
+    for (let v = 1; v <= 40; v++) {
+      for (const mode of MODES) {
+        assert.equal(capacity(v, ec, mode), getCapacity(v, refLevel[ec], toRef[mode]), `${ec} v${v} ${mode}`);
+      }
+    }
+  }
+});
+
+test("character-count field widths per version range", () => {
+  const widths = (v: number) => MODES.map((m) => countBits(m, v));
+  for (const v of [1, 9]) assert.deepEqual(widths(v), [10, 9, 8]);
+  for (const v of [10, 26]) assert.deepEqual(widths(v), [12, 11, 16]);
+  for (const v of [27, 40]) assert.deepEqual(widths(v), [14, 13, 16]);
+});
+
+test("capacity defaults to byte mode", () => {
+  for (const ec of EC_LEVELS) assert.equal(capacity(17, ec), byteCapacity(17, ec));
 });
 
 test("MAX_BYTES is the version-40 byte capacity", () => {

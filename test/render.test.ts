@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { encode, toDataURL, toString, toSvg } from "../src/index";
+import { encode, toDataURL, toString, toSvg, toSvgPath } from "../src/index";
 
 const qr = encode("https://example.com/?q=<qr>&x=1", "M");
 
@@ -33,6 +33,11 @@ test("toSvg: path reproduces the module matrix exactly", () => {
   for (const margin of [0, 4]) {
     assert.deepEqual(modulesFromSvg(toSvg(qr, { margin }), margin), qr.modules);
   }
+});
+
+test("toSvgPath: the path toSvg draws, offset by the margin", () => {
+  assert.ok(toSvg(qr, { margin: 3 }).includes(` d="${toSvgPath(qr, 3)}"`));
+  assert.ok(toSvgPath(qr).startsWith("M0 0h7v1h-7z"), "finder's top edge at the origin");
 });
 
 test("toSvg: margin, colours and moduleSize", () => {

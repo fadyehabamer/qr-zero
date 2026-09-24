@@ -7,19 +7,21 @@ import {
   placeCodewords,
   type Grid,
 } from "./matrix";
+import { alphanumericCode, byteClass, optimalSegments, segmentBits, type Segment } from "./segment";
 import {
-  byteCapacity,
-  byteCountBits,
+  countBits,
   dataCodewords,
   EC_LEVELS,
   ECC_CODEWORDS_PER_BLOCK,
   MAX_BYTES,
   MAX_VERSION,
   MIN_VERSION,
+  MODES,
   NUM_EC_BLOCKS,
   symbolSize,
   totalCodewords,
   type EcLevel,
+  type Mode,
 } from "./tables";
 
 export interface EncodeOptions {
@@ -29,6 +31,18 @@ export interface EncodeOptions {
   minVersion?: number;
   /** Force a mask pattern (0–7) instead of picking the lowest-penalty one. */
   mask?: number;
+  /**
+   * `"auto"` (default) splits the payload into numeric, alphanumeric and
+   * byte segments to minimise the symbol size. A mode name forces one
+   * segment in that mode; it throws if the payload has characters outside it.
+   */
+  mode?: Mode | "auto";
+  /**
+   * Start the symbol with an ECI designator declaring UTF-8 (assignment 26).
+   * Costs 12 bits. Default `false`: most readers already detect UTF-8, and
+   * some older ones mishandle ECI.
+   */
+  eci?: boolean;
 }
 
 /** An encoded QR symbol. */
@@ -45,6 +59,8 @@ export interface QrCode {
   mask: number;
   /** Length of the encoded payload in bytes. */
   bytes: number;
+  /** The segments the payload was split into, in order. */
+  segments: Segment[];
 }
 
 /** Thrown when the payload does not fit in a version-40 symbol. */
@@ -57,9 +73,7 @@ export class QrTooLongError extends RangeError {
   readonly maxBytes: number;
 
   constructor(bytes: number, ecLevel: EcLevel, maxBytes: number = MAX_BYTES[ecLevel]) {
-    super(
-      `QR payload is ${bytes} bytes; at EC level ${ecLevel} a QR code holds at most ${maxBytes} bytes.`,
-    );
+    super(`QR payload of ${bytes} bytes does not fit at EC level ${ecLevel} (byte mode holds ${maxBytes}).`);
     this.name = "QrTooLongError";
     this.bytes = bytes;
     this.ecLevel = ecLevel;
@@ -74,13 +88,45 @@ class BitBuffer {
   }
 }
 
-/** Data codewords (mode, count, payload, terminator, padding) plus EC, interleaved. */
-export function buildCodewords(bytes: Uint8Array, version: number, ec: EcLevel): Uint8Array {
+/** Write each segment's mode indicator, character count and payload. */
+function writeSegments(bb: BitBuffer, data: Uint8Array, segments: readonly Segment[], version: number) {
+  let i = 0;
+  for (const { mode, length } of segments) {
+    const end = i + length;
+    bb.push(1 << MODES.indexOf(mode), 4); // 0001, 0010, 0100
+    bb.push(length, countBits(mode, version));
+    if (mode === "numeric") {
+      for (; i < end; i += 3) {
+        const k = Math.min(3, end - i);
+        let v = 0;
+        for (let j = 0; j < k; j++) v = v * 10 + data[i + j] - 48;
+        bb.push(v, k * 3 + 1); // 3 digits → 10 bits, 2 → 7, 1 → 4
+      }
+    } else if (mode === "alphanumeric") {
+      for (; i < end; i += 2) {
+        const a = alphanumericCode(data[i]);
+        if (i + 1 < end) bb.push(a * 45 + alphanumericCode(data[i + 1]), 11);
+        else bb.push(a, 6);
+      }
+    } else {
+      for (; i < end; i++) bb.push(data[i], 8);
+    }
+    i = end; // the numeric and alphanumeric loops step past a short last group
+  }
+}
+
+/** Data codewords (segments, terminator, padding) plus EC, interleaved. */
+export function buildCodewords(
+  bytes: Uint8Array,
+  segments: readonly Segment[],
+  version: number,
+  ec: EcLevel,
+  eci = false,
+): Uint8Array {
   const capacity = dataCodewords(version, ec) * 8;
   const bb = new BitBuffer();
-  bb.push(0b0100, 4); // byte mode indicator
-  bb.push(bytes.length, byteCountBits(version));
-  for (const b of bytes) bb.push(b, 8);
+  if (eci) bb.push(0x71a, 12); // ECI mode 0111, then assignment 26 as 00011010
+  writeSegments(bb, bytes, segments, version);
 
   bb.push(0, Math.min(4, capacity - bb.bits.length)); // terminator
   while (bb.bits.length % 8 !== 0) bb.bits.push(0);
@@ -136,11 +182,16 @@ function checkInt(name: string, value: number, min: number, max: number) {
  * level. Unless `mask` is given, all eight masks are tried and the one with
  * the lowest penalty score wins.
  *
+ * By default the payload is split into numeric, alphanumeric and byte
+ * segments, choosing the split with the fewest bits for each version range
+ * (the character-count fields widen at versions 10 and 27).
+ *
  * Strings are encoded as UTF-8 (via `TextEncoder`), so Arabic, CJK and emoji
- * survive the round trip; lone surrogates become U+FFFD. No ECI header is
- * written: ISO/IEC 18004 nominally defaults byte mode to ISO-8859-1, but
- * mainstream readers (iOS and Android cameras, ZXing, jsQR) detect UTF-8.
- * Pass a `Uint8Array` to encode raw bytes exactly as given.
+ * survive the round trip; lone surrogates become U+FFFD. Unless `eci` is set
+ * no ECI header is written: ISO/IEC 18004 nominally defaults byte mode to
+ * ISO-8859-1, but mainstream readers (iOS and Android cameras, ZXing, jsQR)
+ * detect UTF-8. A `Uint8Array` is taken as raw bytes and decodes back exactly
+ * as given.
  *
  * @throws {QrTooLongError} if the payload exceeds a version-40 symbol.
  * @throws {RangeError} on an invalid option.
@@ -159,18 +210,34 @@ export function encode(
   checkInt("minVersion", minVersion, MIN_VERSION, MAX_VERSION);
   if (opts.mask !== undefined) checkInt("mask", opts.mask, 0, 7);
 
-  const bytes = toBytes(input);
+  const mode = opts.mode ?? "auto";
+  const forced = MODES.indexOf(mode as Mode);
+  if (mode !== "auto" && forced < 0) {
+    throw new RangeError(`mode must be auto, numeric, alphanumeric or byte, got ${String(mode)}`);
+  }
 
+  const bytes = toBytes(input);
+  if (forced >= 0 && bytes.some((b) => byteClass(b) > forced)) {
+    throw new RangeError(`the payload has characters that ${mode} mode cannot encode`);
+  }
+
+  // Segmentation depends only on the version range, so compute it at most
+  // three times.
+  const byRange: Segment[][] = [];
   let version = 0;
+  let segments: Segment[] = [];
   for (let v = minVersion; v <= MAX_VERSION; v++) {
-    if (bytes.length <= byteCapacity(v, ec)) {
+    const range = v <= 9 ? 0 : v <= 26 ? 1 : 2;
+    segments = byRange[range] ??=
+      forced >= 0 ? [{ mode: mode as Mode, length: bytes.length }] : optimalSegments(bytes, v);
+    if (segmentBits(segments, v) + (opts.eci ? 12 : 0) <= dataCodewords(v, ec) * 8) {
       version = v;
       break;
     }
   }
   if (version === 0) throw new QrTooLongError(bytes.length, ec);
 
-  const data = buildCodewords(bytes, version, ec);
+  const data = buildCodewords(bytes, segments, version, ec, opts.eci);
   const base = functionGrid(version);
   placeCodewords(base, data);
 
@@ -195,5 +262,6 @@ export function encode(
     ecLevel: ec,
     mask: best!.mask,
     bytes: bytes.length,
+    segments,
   };
 }

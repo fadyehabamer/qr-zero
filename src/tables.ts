@@ -52,13 +52,45 @@ export function dataCodewords(version: number, ec: EcLevel): number {
   );
 }
 
-/** Byte mode's character-count field: 8 bits up to version 9, 16 after. */
-export const byteCountBits = (version: number): number => (version <= 9 ? 8 : 16);
+/** Encoding mode of a data segment. */
+export type Mode = "numeric" | "alphanumeric" | "byte";
+
+export const MODES: readonly Mode[] = ["numeric", "alphanumeric", "byte"];
+
+/**
+ * Character-count field width, indexed [mode][version range], where the
+ * ranges are versions 1–9, 10–26 and 27–40.
+ */
+const COUNT_BITS = [
+  [10, 12, 14],
+  [9, 11, 13],
+  [8, 16, 16],
+];
+
+/** Width of a mode's character-count field at a given version. */
+export const countBits = (mode: Mode, version: number): number =>
+  COUNT_BITS[MODES.indexOf(mode)][version <= 9 ? 0 : version <= 26 ? 1 : 2];
+
+/**
+ * Most characters a single segment of one mode fits in a given version and
+ * EC level. Numeric packs 3 digits into 10 bits, alphanumeric 2 characters
+ * into 11 bits, byte mode 8 bits per byte.
+ */
+export function capacity(version: number, ec: EcLevel, mode: Mode = "byte"): number {
+  const bits = dataCodewords(version, ec) * 8 - 4 - countBits(mode, version);
+  const r = mode === "numeric" ? bits % 10 : bits % 11;
+  const n =
+    mode === "numeric"
+      ? Math.floor(bits / 10) * 3 + (r >= 7 ? 2 : r >= 4 ? 1 : 0)
+      : mode === "alphanumeric"
+        ? Math.floor(bits / 11) * 2 + (r >= 6 ? 1 : 0)
+        : Math.floor(bits / 8);
+  return Math.min(n, 2 ** countBits(mode, version) - 1);
+}
 
 /** Largest byte-mode payload a given version holds at a given EC level. */
-export function byteCapacity(version: number, ec: EcLevel): number {
-  return Math.floor((dataCodewords(version, ec) * 8 - 4 - byteCountBits(version)) / 8);
-}
+export const byteCapacity = (version: number, ec: EcLevel): number =>
+  Math.floor((dataCodewords(version, ec) * 8 - 4 - countBits("byte", version)) / 8);
 
 /** Longest payload (in bytes) a version-40 symbol holds at each EC level. */
 export const MAX_BYTES: Readonly<Record<EcLevel, number>> = {
