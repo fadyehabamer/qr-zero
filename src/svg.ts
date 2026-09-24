@@ -70,3 +70,11 @@ export function toSvg(qr: QrCode, options: SvgOptions = {}): string {
   parts.push(`<path fill="${escapeXml(dark)}" d="${d}"/>`, `</svg>`);
   return parts.join("");
 }
+
+/**
+ * Render a QR code as an SVG `data:` URI, ready for `<img src>` or CSS
+ * `url()`. The SVG is percent-encoded, so it is safe with any title text.
+ */
+export function toDataURL(qr: QrCode, options: SvgOptions = {}): string {
+  return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(toSvg(qr, options));
+}
