@@ -14,6 +14,10 @@ Options:
   -m, --margin <n>     quiet zone in modules (default 2 in the terminal, 4 in SVG)
   -o, --svg <file>     write an SVG file instead of printing; "-" for stdout
       --title <text>   accessible title for the SVG
+      --dark <color>   SVG colour of dark modules (default #000000)
+      --light <color>  SVG background; "none" or "transparent" for none (default #ffffff)
+      --module-size <n>
+                       SVG pixels per module (default 4)
       --mode <mode>    auto, numeric, alphanumeric or byte (default auto)
       --eci            start with a UTF-8 ECI designator
       --ascii          draw with "##" instead of Unicode half blocks
@@ -34,6 +38,9 @@ function main(argv: string[]): number {
         margin: { type: "string", short: "m" },
         svg: { type: "string", short: "o" },
         title: { type: "string" },
+        dark: { type: "string" },
+        light: { type: "string" },
+        "module-size": { type: "string" },
         mode: { type: "string" },
         eci: { type: "boolean" },
         ascii: { type: "boolean" },
@@ -68,6 +75,27 @@ function main(argv: string[]): number {
     }
     margin = Number(values.margin);
   }
+  for (const name of ["dark", "light", "module-size"] as const) {
+    if (values[name] !== undefined && values.svg === undefined) {
+      throw new UsageError(`--${name} only applies to SVG output; add --svg <file> or --svg -`);
+    }
+  }
+  for (const name of ["dark", "light"] as const) {
+    if (values[name] !== undefined && values[name].trim() === "") {
+      throw new UsageError(`--${name} must be a colour, got an empty string`);
+    }
+  }
+  const light =
+    values.light !== undefined && ["none", "transparent"].includes(values.light.toLowerCase())
+      ? null
+      : values.light;
+  let moduleSize: number | undefined;
+  if (values["module-size"] !== undefined) {
+    if (!/^\d+$/.test(values["module-size"]) || Number(values["module-size"]) === 0) {
+      throw new UsageError(`--module-size must be a positive integer, got ${values["module-size"]}`);
+    }
+    moduleSize = Number(values["module-size"]);
+  }
   const mode = (values.mode ?? "auto") as Mode | "auto";
   if (!["auto", "numeric", "alphanumeric", "byte"].includes(mode)) {
     throw new UsageError(`--mode must be auto, numeric, alphanumeric or byte, got ${values.mode}`);
@@ -85,7 +113,7 @@ function main(argv: string[]): number {
 
   const qr = encode(text, { ecLevel, mode, eci: values.eci });
   if (values.svg !== undefined) {
-    const svg = toSvg(qr, { margin, title: values.title });
+    const svg = toSvg(qr, { margin, title: values.title, dark: values.dark, light, moduleSize });
     if (values.svg === "-") {
       process.stdout.write(svg + "\n");
     } else {
