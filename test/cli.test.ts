@@ -78,6 +78,40 @@ test("cli: --svg - writes to stdout", () => {
   assert.equal(r.stdout, toSvg(encode("0123456789")) + "\n");
 });
 
+test("cli: --dark, --light and --module-size reach toSvg()", () => {
+  const qr = encode("hello");
+  const r = run(["hello", "--svg", "-", "--dark", "#1d4ed8", "--light", "#fef3c7", "--module-size", "8"]);
+  assert.equal(r.code, 0, r.stderr);
+  assert.equal(r.stdout, toSvg(qr, { dark: "#1d4ed8", light: "#fef3c7", moduleSize: 8 }) + "\n");
+  assert.match(r.stdout, new RegExp(`width="${(qr.size + 8) * 8}"`));
+
+  const current = run(["hello", "-o", "-", "--dark", "currentColor"]);
+  assert.equal(current.stdout, toSvg(qr, { dark: "currentColor" }) + "\n");
+});
+
+test("cli: --light none or transparent leaves out the background", () => {
+  const qr = encode("hello");
+  const expected = toSvg(qr, { light: null }) + "\n";
+  assert.doesNotMatch(expected, /<rect/);
+  for (const light of ["none", "transparent", "NONE"]) {
+    const r = run(["hello", "-o", "-", "--light", light]);
+    assert.equal(r.code, 0, r.stderr);
+    assert.equal(r.stdout, expected, light);
+  }
+});
+
+test("cli: --dark, --light and --module-size work with an SVG file", () => {
+  const dir = mkdtempSync(join(tmpdir(), "qr-zero-cli-"));
+  try {
+    const file = join(dir, "out.svg");
+    const r = run(["hello", "--svg", file, "--dark", "red", "--light", "none", "--module-size", "10"]);
+    assert.equal(r.code, 0, r.stderr);
+    assert.equal(readFileSync(file, "utf8"), toSvg(encode("hello"), { dark: "red", light: null, moduleSize: 10 }) + "\n");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("cli: reads stdin when no text is given, dropping one trailing newline", () => {
   const qr = encode("from stdin\n2nd line");
   const r = run(["--svg", "-"], "from stdin\n2nd line\n");
@@ -105,6 +139,15 @@ test("cli: usage errors exit 2, encoding errors exit 1", () => {
     ["x", "--mode", "kanji"],
     ["x", "--bogus"],
     ["x", "--margin"],
+    ["x", "-o", "-", "--module-size", "0"],
+    ["x", "-o", "-", "--module-size", "-4"],
+    ["x", "-o", "-", "--module-size", "2.5"],
+    ["x", "-o", "-", "--module-size", "big"],
+    ["x", "-o", "-", "--dark", ""],
+    ["x", "-o", "-", "--light", ""],
+    ["x", "--dark", "red"],
+    ["x", "--light", "none"],
+    ["x", "--module-size", "8"],
   ];
   for (const args of usage) {
     const r = run(args);
