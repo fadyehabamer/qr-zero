@@ -148,6 +148,7 @@ Any other SVG attribute (`className`, `style`, `id`, `aria-*`) is passed through
 npx qr-zero "https://example.com"                     # print to the terminal
 npx qr-zero "https://example.com" --ec H --margin 4   # EC level and quiet zone
 npx qr-zero "https://example.com" --svg qr.svg        # write an SVG file
+npx qr-zero "https://example.com" --svg qr.svg --dark "#1d4ed8" --light none --module-size 8
 echo "piped text" | npx qr-zero --svg - > qr.svg      # stdin in, SVG to stdout
 ```
 
@@ -157,12 +158,15 @@ echo "piped text" | npx qr-zero --svg - > qr.svg      # stdin in, SVG to stdout
 | `-m, --margin <n>` | Quiet zone in modules. Defaults to 2 in the terminal and 4 in SVG. |
 | `-o, --svg <file>` | Write an SVG file instead of printing. Use `-` for stdout. |
 | `--title <text>`   | Accessible title for the SVG. |
+| `--dark <color>`   | SVG colour of the dark modules, e.g. `#1d4ed8` or `currentColor`. Defaults to `#000000`. |
+| `--light <color>`  | SVG background colour. `none` or `transparent` leaves the background out. Defaults to `#ffffff`. |
+| `--module-size <n>` | SVG pixels per module, used for the `width` and `height` attributes. A positive integer, default 4. |
 | `--mode <mode>`    | `auto` (default), `numeric`, `alphanumeric` or `byte`. |
 | `--eci`            | Start with a UTF-8 ECI designator. |
 | `--ascii`          | Draw with `##` instead of Unicode half blocks. |
 | `--light-bg`       | Don't invert the output. Use it when the terminal has a light background. |
 
-Without a text argument, the CLI reads the payload from stdin and drops one trailing newline. It exits with 1 when the payload doesn't fit and with 2 on a usage error.
+Without a text argument, the CLI reads the payload from stdin and drops one trailing newline. `--dark`, `--light` and `--module-size` only apply to SVG output, so they need `--svg`. It exits with 1 when the payload doesn't fit and with 2 on a usage error.
 
 ### Terminal
 
@@ -307,7 +311,7 @@ npm run typecheck
 npm run check:pack  # build, npm pack, install the tarball, import + require it
 ```
 
-The suite (111 tests) covers:
+The suite (114 tests) covers:
 
 - **GF(256) and Reed–Solomon**: checked against the spec's generator polynomials and worked examples.
 - **Capacities, format bits and version bits**: byte, numeric and alphanumeric capacities for every version and EC level (checked against Table 7 and the `qrcode` package), each capacity boundary hit with a real payload, character-count widths per version range, the `MAX_BYTES` limit and `QrTooLongError`; all 32 format words and the version words, read back out of encoded matrices.

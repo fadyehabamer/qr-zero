@@ -13,6 +13,10 @@ All notable changes to this project are documented here. The format follows
   encoder option, segment and capacity details, SVG and PNG downloads, a code
   snippet for the current options, and presets for URLs, Wi-Fi, vCards and
   Arabic text. It is not part of the npm package.
+- CLI: `--dark <color>`, `--light <color>` and `--module-size <n>` for SVG
+  output, passed through to `toSvg()`. `--light none` (or `transparent`)
+  leaves out the background. They need `--svg`, and invalid values are usage
+  errors (exit code 2).
 
 ## [0.2.0] - 2026-09-24
 
